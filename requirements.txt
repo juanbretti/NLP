@@ -4,7 +4,7 @@ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.2.0
 pandas
 elasticsearch
 torch
-fastai
+fastai>=2
 fastbook
 seaborn
 tensorflow_gpu>=2.0
