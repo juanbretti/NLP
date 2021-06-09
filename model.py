@@ -63,7 +63,7 @@ test_df = test_df.merge(df_class_conversion_dict, on='class')
 # %%
 def multiple_filters(df):
     # Classes of interest
-    df = df[df['class_group'].isin(['religion', 'automobile', 'medicine','sport'] )]
+    df = df[df['class_group'].isin(['religion', 'automobile', 'medicine', 'sport'] )]
     # No text
     df['words_count'] = df['text'].apply(lambda x:len(str(x).split()))
     no_text = df[df['words_count']==0]
@@ -182,7 +182,7 @@ def train_and_evaluate_classifier(X, yt, estimator, grid):
     
     # Cross validation
     from sklearn.model_selection import ShuffleSplit
-    cv = ShuffleSplit(n_splits=5, test_size=0.2, random_state=0)
+    cv = ShuffleSplit(n_splits=5, test_size=0.2, random_state=42)
       
     from sklearn.model_selection import GridSearchCV
     grid_search = GridSearchCV(estimator=estimator, cv=cv,  param_grid=grid, error_score=0.0, n_jobs = -1, verbose = 0)
@@ -200,16 +200,18 @@ def train_and_evaluate_classifier(X, yt, estimator, grid):
 
 svm_grid = [
   {'C': [0.01, 0.1, 1], 'kernel': ['linear']},
-  {'C': [1, 10, 100, 1000], 'gamma': ['scale', 'auto'], 'kernel': ['rbf']},
+#   {'C': [1, 10, 100, 1000], 'gamma': ['scale', 'auto'], 'kernel': ['rbf']},
  ]
-# Required y_train to be specified as y_train.values.ravel() for it to run.
-SVM_gridsearch, SVM_best_params = train_and_evaluate_classifier(train_df_clean_text_tfidf, train_df['class_group_encoded'], SVC(), svm_grid)
+svm_clf = SVC(probability=True, random_state=42)
+
+SVM_gridsearch, SVM_best_params = train_and_evaluate_classifier(train_df_clean_text_tfidf, train_df['class_group_encoded'], svm_clf, svm_grid)
 
 # %%
 # joblib.dump(SVM_gridsearch, './models/SVM_gridsearch.pkl')
 # SVM_gridsearch = joblib.load('./models/SVM_gridsearch.pkl')
 
 y_predict = SVM_gridsearch.predict(test_df_clean_text_tfidf)
+y_predict_proba = SVM_gridsearch.predict_proba(test_df_clean_text_tfidf)
 
 print(classification_report(test_df['class_group_encoded'], y_predict))
 
