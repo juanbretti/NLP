@@ -1,31 +1,20 @@
 # %%
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, request
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm 
 from flask_sqlalchemy  import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from wtforms import StringField, PasswordField, BooleanField
+from wtforms import StringField, PasswordField, BooleanField, TextAreaField
 from wtforms.validators import InputRequired, Email, Length
 from werkzeug.security import generate_password_hash, check_password_hash
-
-import nltk
-from nltk.stem import *
-from nltk.corpus import stopwords
-nltk.download('stopwords')
-
-import re
-import string
 
 import pandas as pd
 import numpy as np
 
-from sklearn.svm import SVC
-from sklearn import preprocessing
-from sklearn.datasets import fetch_20newsgroups
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
 
 import joblib
+from helpers import helpers
 
 # %%
 app = Flask(__name__)
@@ -55,6 +44,9 @@ class RegisterForm(FlaskForm):
     username = StringField('username', validators=[InputRequired(), Length(min=4, max=15)])
     password = PasswordField('password', validators=[InputRequired(), Length(min=8, max=80)])
 
+class ComposeForm(FlaskForm):
+    message = TextAreaField('message', validators=[InputRequired()])
+
 # %%
 @login_manager.user_loader
 def load_user(user_id):
@@ -69,7 +61,7 @@ def login():
         if user:
             if check_password_hash(user.password, form.password.data):
                 login_user(user, remember=form.remember.data)
-                return redirect(url_for('dashboard'))
+                return redirect(url_for('inbox'))
 
         return '<h1>Invalid username or password</h1>'
         #return '<h1>' + form.username.data + ' ' + form.password.data + '</h1>'
@@ -101,163 +93,76 @@ def logout():
 def index():
     return render_template('index.html')
 
-@app.route('/dashboard')
+def find_class_prob(y_predict_proba):
+    target_labels = joblib.load('./models/target_labels.pkl')
+
+    # Top
+    n=2
+    best_n = np.argsort(-y_predict_proba, axis=1)[:,:n]
+    label1, probability1 = [], []
+    label2, probability2 = [], []
+    for best, prob in zip(best_n, y_predict_proba):
+        # Top #1
+        label1.append(target_labels[best[0]])
+        probability1.append(prob[best[0]])
+        # Top #2
+        label2.append(target_labels[best[1]])
+        probability2.append(prob[best[1]])
+
+    test_class_prob = pd.DataFrame({'Class 1': label1, 'Probability 1': probability1, 'Class 2': label2, 'Probability 2': probability2})
+    return test_class_prob
+
+@app.route('/inbox')
 @login_required
-def dashboard():
-    return render_template('dashboard.html', name=current_user.username)
+def inbox():
+    test_df = joblib.load('./models/test_df.pkl')
+    test_df = test_df.reset_index()
+    y_predict_proba = joblib.load('./models/y_predict_proba.pkl')
+    test_class_prob = find_class_prob(y_predict_proba)
+    test_df_contact = pd.concat([test_df, test_class_prob], axis=1)
 
-# %%
-# if __name__ == '__main__':
-    # app.run(debug=True)
+    return render_template('inbox.html', name=current_user.username, df=test_df_contact.sample(n=20))
 
-# %%
-## Load data ----
-dataset = fetch_20newsgroups(subset='test', remove=('headers', 'footers', 'quotes'), shuffle=True, random_state=42)
-test_df = pd.DataFrame()
-test_df['text'] = dataset.data
-test_df['source'] = dataset.target
-test_df['class'] = [dataset.target_names[i] for i in test_df['source']]
+@app.route('/compose', methods=['GET', 'POST'])
+@login_required
+def compose():
+    
+    form = ComposeForm()
+    predicted_class='Write your email'
 
-# %%
-class_conversion_dict = {'talk.politics.misc':'politics',
-    'talk.politics.guns':'politics',
-    'talk.politics.mideast':'politics',
-    'rec.sport.hockey':'sport',
-    'rec.sport.baseball':'sport',
-    'soc.religion.christian':'religion',
-    'talk.religion.misc':'religion',
-    'alt.atheism':'religion',
-    'comp.windows.x':'computer',
-    'comp.sys.ibm.pc.hardware':'computer',
-    'comp.os.ms-windows.misc':'computer',
-    'comp.graphics':'computer',
-    'comp.sys.mac.hardware':'computer',
-    'misc.forsale':'sales',
-    'rec.autos':'automobile',
-    'rec.motorcycles':'automobile',
-    'sci.crypt':'science',
-    'sci.electronics':'science',
-    'sci.space':'science',
-    'sci.med':'medicine'}
-df_class_conversion_dict = pd.DataFrame(list(class_conversion_dict.items()),columns = ['class','class_group']) 
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # Load model and encoders
+            SVM_gridsearch = joblib.load('./models/SVM_gridsearch.pkl')
+            encoder_le = joblib.load('./models/encoder_le.pkl')
+            encoder_cv = joblib.load('./models/encoder_cv.pkl')
+            encoder_tfidf = joblib.load('./models/encoder_tfidf.pkl')
 
-# {'politics':0, 'sport':1, 'religion':2, 'computer':3, 'sales':4, 'automobile':5, 'science':6, 'medicine':7}
+            # Apply encoders
+            test_df = pd.DataFrame({'text': [form.message.data]})
+            test_df = helpers.process_text_additional(test_df)
+            test_df_tfidf, _ = helpers.f_encoder_cv(test_df, encoder_cv)
+            test_df_tfidf, _ = helpers.f_encoder_tfidf(test_df_tfidf, encoder_tfidf)
 
-test_df = test_df.merge(df_class_conversion_dict, on='class')
-
-# %%
-test_df = test_df[test_df['class_group'].isin(['religion', 'automobile', 'medicine','sport'] )]
-
-def filter_no_text(test_df):
-    test_df['words_count'] = test_df['text'].apply(lambda x:len(str(x).split()))
-    no_text = test_df[test_df['words_count']==0]
-    test_df.drop(no_text.index,inplace=True)
-    return test_df
-
-# %%
-def clean(email):            
-    # Special characters
-    email = re.sub(r"\x89Û_", "", email)
-    email = re.sub(r"\x89ÛÒ", "", email)
-    email = re.sub(r"\x89ÛÓ", "", email)
-    email = re.sub(r"\x89ÛÏWhen", "When", email)
-    email = re.sub(r"\x89ÛÏ", "", email)
-    email = re.sub(r"China\x89Ûªs", "China's", email)
-    email = re.sub(r"let\x89Ûªs", "let's", email)
-    email = re.sub(r"\x89Û÷", "", email)
-    email = re.sub(r"\x89Ûª", "", email)
-    email = re.sub(r"\x89Û\x9d", "", email)
-    email = re.sub(r"å_", "", email)
-    email = re.sub(r"\x89Û¢", "", email)
-    email = re.sub(r"\x89Û¢åÊ", "", email)
-    email = re.sub(r"fromåÊwounds", "from wounds", email)
-    email = re.sub(r"åÊ", "", email)
-    email = re.sub(r"åÈ", "", email)
-    email = re.sub(r"JapÌ_n", "Japan", email)    
-    email = re.sub(r"Ì©", "e", email)
-    email = re.sub(r"å¨", "", email)
-    email = re.sub(r"SuruÌ¤", "Suruc", email)
-    email = re.sub(r"åÇ", "", email)
-    email = re.sub(r"å£3million", "3 million", email)
-    email = re.sub(r"åÀ", "", email)
+            # Transform
+            # y_predict = SVM_gridsearch.predict(test_df_tfidf)
+            y_predict_proba = SVM_gridsearch.predict_proba(test_df_tfidf)
+            test_class_prob = find_class_prob(y_predict_proba)
+            test_df_contact = pd.concat([test_df, test_class_prob], axis=1)
             
-    # Character entity references
-    email = re.sub(r"&gt;", ">", email)
-    email = re.sub(r"&lt;", "<", email)
-    email = re.sub(r"&amp;", "&", email)
-    
-    # Typos, slang and informal abbreviations
-    email = re.sub(r"w/e", "whatever", email)
-    email = re.sub(r"w/", "with", email)
-    email = re.sub(r"USAgov", "USA government", email)
-    email = re.sub(r"recentlu", "recently", email)
-    email = re.sub(r"Ph0tos", "Photos", email)
-    email = re.sub(r"amirite", "am I right", email)
-    email = re.sub(r"exp0sed", "exposed", email)
-    email = re.sub(r"<3", "love", email)
-    email = re.sub(r"amageddon", "armageddon", email)
-    email = re.sub(r"Trfc", "Traffic", email)
-    email = re.sub(r"8/5/2015", "2015-08-05", email)
-    email = re.sub(r"WindStorm", "Wind Storm", email)
-    email = re.sub(r"8/6/2015", "2015-08-06", email)
-    email = re.sub(r"10:38PM", "10:38 PM", email)
-    email = re.sub(r"10:30pm", "10:30 PM", email)
-    email = re.sub(r"16yr", "16 year", email)
-    email = re.sub(r"lmao", "laughing my ass off", email)   
-    email = re.sub(r"TRAUMATISED", "traumatized", email)
-        
-    # Words with punctuations and special characters
-    punctuations = '@#!?+&*[]-%.:/();$=><|{}^' + "'`"
-    for p in punctuations:
-        email = email.replace(p, f' {p} ')
-        
-    return email
+            form = ComposeForm(message=form.message)
+            # <td> {{ email['Class 1'] }} [{{ '%0.0f'|format((email['Probability 1']|float)*100) }}%]</td>
+            predicted_class= f"{test_df_contact['Class 1'][0]} [{test_df_contact['Probability 1'][0]*100:0.0f}%] \
+                or {test_df_contact['Class 2'][0]} [{test_df_contact['Probability 2'][0]*100:0.0f}%]"
+        else:
+            form = ComposeForm(message='')
+            predicted_class='Write your email'
 
-def process_text_additional(raw_text):
-    raw_text = clean(raw_text)
-
-    letters_only = re.sub("[^a-zA-Z]", " ",raw_text) 
-    letters_only = letters_only.lower()
-    letters_only = re.sub('\[.*?\]', '', letters_only)
-    letters_only= re.sub('http?://\S+|www\.\S+', '', letters_only)
-    letters_only = re.sub('<.*?>+', '', letters_only)
-    letters_only = re.sub('[%s]' % re.escape(string.punctuation), '', letters_only)
-    letters_only = re.sub('\n', '', letters_only)
-    letters_only = re.sub('\w*\d\w*', '', letters_only)
-    words = letters_only.lower().split()
-    
-    stops = set(stopwords.words("english"))  
-    not_stop_words = [w for w in words if not w in stops]
-    
-    stemmer = PorterStemmer()
-    stemmed = [stemmer.stem(word) for word in not_stop_words]
-    
-    return( " ".join( stemmed ))
-
-test_df['clean_text'] = test_df['text'].apply(lambda x: process_text_additional(x))
+    return render_template('compose.html', name=current_user.username, form=form, predicted_class=predicted_class)
 
 # %%
-# TODO: Necesito `le`
-le = preprocessing.LabelEncoder()
-le.fit(dataset.target.values)
-target_labels = le.classes_
-dataset.target = le.transform(test_df[])
+if __name__ == '__main__':
+    app.run(debug=True)
 
 # %%
-# TODO: Necesito `count_vect` y `tfidf`
-count_vect = CountVectorizer(analyzer = "word")
-train_features = count_vect.fit_transform(X_train['clean_text'])
 
-tfidf = TfidfTransformer(norm="l2")
-train_text_tfidf_features = tfidf.fit_transform(train_features)
-
-testData = count_vect.transform(X_test['clean_text'])
-test_text_tfidf_features = tfidf.transform(testData)
-
-# %%
-# joblib.dump(SVM_classifier, './models/SVM_classifier.pkl')
-SVM_classifier = joblib.load('./models/SVM_classifier.pkl')
-
-y_predict = SVM_classifier.predict(test_text_tfidf_features)
-
-print(classification_report(y_test, y_predict))
