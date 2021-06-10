@@ -32,14 +32,10 @@ train_df = helpers.process_text_additional(train_df)
 test_df = helpers.process_text_additional(test_df)
 
 train_df, encoder_le, target_labels = helpers.f_encoder_le(train_df)
-train_df_tfidf, encoder_cv = helpers.f_encoder_cv(train_df)
-train_df_tfidf, encoder_tfidf = helpers.f_encoder_tfidf(train_df_tfidf)
-
 test_df, _, _ = helpers.f_encoder_le(test_df, encoder_le)
-test_df_tfidf, _ = helpers.f_encoder_cv(test_df, encoder_cv)
-test_df_tfidf, _ = helpers.f_encoder_tfidf(test_df_tfidf, encoder_tfidf)
 
-# train_df_tfidf, encoder_cv, encoder_tfidf = helpers.f_encoder_cv_tfidf(train_df)
+train_df_tfidf, encoder_cv, encoder_tfidf = helpers.f_encoder_cv_tfidf(train_df)
+test_df_tfidf, _, _ = helpers.f_encoder_cv_tfidf(test_df, encoder_cv, encoder_tfidf)
 
 # %%
 def train_and_evaluate_classifier(X, yt, estimator, grid):

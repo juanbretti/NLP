@@ -153,31 +153,17 @@ def f_encoder_le(train_df, encoder_le=None):
     train_df['class_group_encoded'] = encoder_le.transform(train_df['class_group'])
     return train_df, encoder_le, target_labels
 
-# def f_encoder_cv_tfidf(train_df, encoder_cv=None, encoder_tfidf=None):
-#     if encoder_cv is None:
-#         encoder_cv = CountVectorizer(analyzer = "word")
-#         encoder_cv.fit(train_df['clean_text'])
-#     train_df_clean_text_cv = encoder_cv.transform(train_df['clean_text'])
-
-#     if encoder_tfidf is None:
-#         encoder_tfidf = TfidfTransformer(norm="l2")
-#         encoder_tfidf.fit(train_df_clean_text_cv)
-#     train_df_clean_text_tfidf = encoder_tfidf.transform(train_df_clean_text_cv)
-    
-#     return train_df_clean_text_tfidf, encoder_cv, encoder_tfidf
-
-def f_encoder_cv(train_df, encoder_cv=None):
+def f_encoder_cv_tfidf(train_df, encoder_cv=None, encoder_tfidf=None):
     if encoder_cv is None:
         encoder_cv = CountVectorizer(analyzer = "word")
         encoder_cv.fit(train_df['clean_text'])
     train_df_clean_text_cv = encoder_cv.transform(train_df['clean_text'])
-    return train_df_clean_text_cv, encoder_cv
 
-def f_encoder_tfidf(train_df_clean_text_cv, encoder_tfidf=None):
     if encoder_tfidf is None:
         encoder_tfidf = TfidfTransformer(norm="l2")
         encoder_tfidf.fit(train_df_clean_text_cv)
     train_df_clean_text_tfidf = encoder_tfidf.transform(train_df_clean_text_cv)
-    return train_df_clean_text_tfidf, encoder_tfidf
+    
+    return train_df_clean_text_tfidf, encoder_cv, encoder_tfidf
 
 # %%

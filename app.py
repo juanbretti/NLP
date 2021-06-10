@@ -138,8 +138,7 @@ def compose():
             # Apply encoders
             test_df = pd.DataFrame({'text': [form.message.data]})
             test_df = helpers.process_text_additional(test_df)
-            test_df_tfidf, _ = helpers.f_encoder_cv(test_df, encoder_cv)
-            test_df_tfidf, _ = helpers.f_encoder_tfidf(test_df_tfidf, encoder_tfidf)
+            test_df_tfidf, _, _ = helpers.f_encoder_cv_tfidf(test_df, encoder_cv, encoder_tfidf)
 
             # Transform
             # y_predict = SVM_gridsearch.predict(test_df_tfidf)
