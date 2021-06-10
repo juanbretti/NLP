@@ -1,0 +1,9 @@
+nltk
+pandas==1.2.3
+flask_bootstrap
+flask_wtf
+flask_sqlalchemy
+flask_login
+email_validator
+scikit-learn==0.21.3
+scikit-plot

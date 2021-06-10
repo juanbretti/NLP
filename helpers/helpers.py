@@ -23,7 +23,6 @@ import joblib
 def fetch(subset):
     dataset = fetch_20newsgroups(subset=subset, remove=('headers', 'footers', 'quotes'), shuffle=True, random_state=42)
     train_df = pd.DataFrame()
-    train_df['header'] = dataset.header
     train_df['text'] = dataset.data
     train_df['source'] = dataset.target
     train_df['class'] = [dataset.target_names[i] for i in train_df['source']]
@@ -48,7 +47,7 @@ def fetch(subset):
         'sci.electronics':'science',
         'sci.space':'science',
         'sci.med':'medicine'}
-    df_class_conversion_dict = pd.DataFrame(list(class_conversion_dict.items()),columns = ['class','class_group']) 
+    df_class_conversion_dict = pd.DataFrame(list(class_conversion_dict.items()),columns = ['class', 'class_group']) 
 
     train_df = train_df.merge(df_class_conversion_dict, on='class')
 

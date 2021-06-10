@@ -11,8 +11,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
 import numpy as np
 
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-
 import joblib
 from helpers import helpers
 
@@ -134,7 +132,6 @@ def compose():
         if form.validate_on_submit():
             # Load model and encoders
             SVM_gridsearch = joblib.load('./models/SVM_gridsearch.pkl')
-            encoder_le = joblib.load('./models/encoder_le.pkl')
             encoder_cv = joblib.load('./models/encoder_cv.pkl')
             encoder_tfidf = joblib.load('./models/encoder_tfidf.pkl')
 
