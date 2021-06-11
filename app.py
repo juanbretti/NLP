@@ -119,7 +119,7 @@ def inbox():
     test_class_prob = find_class_prob(y_predict_proba)
     test_df_contact = pd.concat([test_df, test_class_prob], axis=1)
 
-    return render_template('inbox.html', name=current_user.username, df=test_df_contact.sample(n=20))
+    return render_template('inbox.html', name=current_user.username, df=test_df_contact.sample(n=10))
 
 @app.route('/compose', methods=['GET', 'POST'])
 @login_required
