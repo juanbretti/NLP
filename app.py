@@ -92,6 +92,14 @@ def index():
     return render_template('index.html')
 
 def find_class_prob(y_predict_proba):
+    """Extract from the prediction, the first two best predictions
+
+    Args:
+        y_predict_proba ([Array]): Array with the predictions
+
+    Returns:
+        [DataFrame]: Class and probability of the first 2 predictions
+    """
     target_labels = joblib.load('./models/target_labels.pkl')
 
     # Top
@@ -113,8 +121,11 @@ def find_class_prob(y_predict_proba):
 @app.route('/inbox')
 @login_required
 def inbox():
+    # Load the dataset from the local storage
     test_df = joblib.load('./models/test_df.pkl')
     test_df = test_df.reset_index()
+    # Load the predictions from the local storage
+    # This is done, for speed up the web application.
     y_predict_proba = joblib.load('./models/y_predict_proba.pkl')
     test_class_prob = find_class_prob(y_predict_proba)
     test_df_contact = pd.concat([test_df, test_class_prob], axis=1)
@@ -140,14 +151,14 @@ def compose():
             test_df = helpers.process_text_additional(test_df)
             test_df_tfidf, _, _ = helpers.f_encoder_cv_tfidf(test_df, encoder_cv, encoder_tfidf)
 
-            # Transform
+            # Predict in realtime the classification
             # y_predict = SVM_gridsearch.predict(test_df_tfidf)
             y_predict_proba = SVM_gridsearch.predict_proba(test_df_tfidf)
             test_class_prob = find_class_prob(y_predict_proba)
             test_df_contact = pd.concat([test_df, test_class_prob], axis=1)
             
             form = ComposeForm(message=form.message)
-            # <td> {{ email['Class 1'] }} [{{ '%0.0f'|format((email['Probability 1']|float)*100) }}%]</td>
+            # Text output for the HTML
             predicted_class= f"{test_df_contact['Class 1'][0]} [{test_df_contact['Probability 1'][0]*100:0.0f}%] \
                 or {test_df_contact['Class 2'][0]} [{test_df_contact['Probability 2'][0]*100:0.0f}%]"
         else:

@@ -1,4 +1,5 @@
 # %%
+# Load the libraries
 import nltk
 from nltk.stem import *
 from nltk.corpus import stopwords
@@ -38,6 +39,7 @@ train_df_tfidf, encoder_cv, encoder_tfidf = helpers.f_encoder_cv_tfidf(train_df)
 test_df_tfidf, _, _ = helpers.f_encoder_cv_tfidf(test_df, encoder_cv, encoder_tfidf)
 
 # %%
+# Train the model
 def train_and_evaluate_classifier(X, yt, estimator, grid):
     """Train and Evaluate a estimator (defined as input parameter) on the given labeled data using accuracy."""
     
@@ -59,21 +61,25 @@ def train_and_evaluate_classifier(X, yt, estimator, grid):
         print("Best parameters set:",best_parameters)
     return grid_search, best_parameters
 
+# Space of hyperparameter optimization
 svm_grid = [
   {'C': [0.01, 0.1, 1], 'kernel': ['linear']},
-#   {'C': [1, 10, 100, 1000], 'gamma': ['scale', 'auto'], 'kernel': ['rbf']},
+  {'C': [1, 10, 100, 1000], 'gamma': ['scale', 'auto'], 'kernel': ['rbf']},
  ]
 svm_clf = SVC(probability=True, random_state=42)
 
 SVM_gridsearch, SVM_best_params = train_and_evaluate_classifier(train_df_tfidf, train_df['class_group_encoded'], svm_clf, svm_grid)
 
 # %%
+# Prediction
 y_predict = SVM_gridsearch.predict(test_df_tfidf)
 y_predict_proba = SVM_gridsearch.predict_proba(test_df_tfidf)
 
+# Performance of the model
 print(classification_report(test_df['class_group_encoded'], y_predict))
 
 # %%
+# Dump the model to the local storage
 joblib.dump(SVM_gridsearch, './models/SVM_gridsearch.pkl')
 joblib.dump(encoder_le, './models/encoder_le.pkl')
 joblib.dump(target_labels, './models/target_labels.pkl')
@@ -84,6 +90,7 @@ joblib.dump(test_df_tfidf, './models/test_df_tfidf.pkl')
 joblib.dump(y_predict, './models/y_predict.pkl')
 joblib.dump(y_predict_proba, './models/y_predict_proba.pkl')
 
+# Load the model from the local storage
 # SVM_gridsearch = joblib.load('./models/SVM_gridsearch.pkl')
 # encoder_le = joblib.load('./models/encoder_le.pkl')
 # target_labels = joblib.load('./models/target_labels.pkl')

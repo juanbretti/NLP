@@ -21,6 +21,14 @@ import joblib
 # %%
 ## Load data ----
 def fetch(subset):
+    """ Downloads the datasets from the web server
+
+    Args:
+        subset ([string]): `train` or `test` to be pulled
+
+    Returns:
+        DataFrame: Requested dataset
+    """
     dataset = fetch_20newsgroups(subset=subset, remove=('headers', 'footers', 'quotes'), shuffle=True, random_state=42)
     train_df = pd.DataFrame()
     train_df['text'] = dataset.data
@@ -54,6 +62,14 @@ def fetch(subset):
     return train_df
 
 def multiple_filters(df):
+    """Based on a more detailed study at the notebook, this function applies some filters to the dataset
+
+    Args:
+        df (DataFrame): Source data frame
+
+    Returns:
+        DataFrame: Output data frame
+    """
     # Classes of interest
     df = df[df['class_group'].isin(['religion', 'automobile', 'medicine', 'sport'])]
     # No text
@@ -62,7 +78,16 @@ def multiple_filters(df):
     df = df.drop(no_text.index)
     return df
 
-def clean(email):            
+def clean(email):
+    """Based on a more detailed study at the notebook, this function applies some cleanup transformation to the `text`
+
+    Args:
+        email (String): String of text
+
+    Returns:
+        String: String of text
+    """
+    a=1     
     # Special characters
     email = re.sub(r"\x89Û_", "", email)
     email = re.sub(r"\x89ÛÒ", "", email)
@@ -121,6 +146,14 @@ def clean(email):
     return email
 
 def process_text_additional_row(raw_text):
+    """Preprocessing of the text, to include transformations like `Stemming` and removal of `stop words`.
+
+    Args:
+        raw_text (String): String of text
+
+    Returns:
+        String: String of text
+    """
     raw_text = clean(raw_text)
 
     letters_only = re.sub("[^a-zA-Z]", " ",raw_text) 
@@ -142,10 +175,27 @@ def process_text_additional_row(raw_text):
     return( " ".join( stemmed ))
 
 def process_text_additional(train_df):
+    """Applies the transformations at `process_text_additional_row` to the whole dataframe
+
+    Args:
+        train_df ([DataFrame]): Source dataframe
+
+    Returns:
+        [DataFrame]: Output dataframe
+    """
     train_df['clean_text'] = train_df['text'].apply(lambda x: process_text_additional_row(x))
     return train_df
 
 def f_encoder_le(train_df, encoder_le=None):
+    """Encodes the target variable
+
+    Args:
+        train_df (DataFrame): Source dataframe
+        encoder_le (Object, optional): Encoder for the transformation of the type `LabelEncoder`. Defaults to None.
+
+    Returns:
+        [type]: [description]
+    """
     if encoder_le is None:
         encoder_le = preprocessing.LabelEncoder()
         encoder_le.fit(train_df['class_group'])
@@ -154,6 +204,16 @@ def f_encoder_le(train_df, encoder_le=None):
     return train_df, encoder_le, target_labels
 
 def f_encoder_cv_tfidf(train_df, encoder_cv=None, encoder_tfidf=None):
+    """Encodes the dataframe features, using `CountVectorizer` and later `TfidfTransformer`
+
+    Args:
+        train_df ([DataFrame]): Source dataframe
+        encoder_cv (Object, optional): Encoder of the type `CountVectorizer`. Defaults to None.
+        encoder_tfidf (Object, optional): Encoder of the type `TfidfTransformer`. Defaults to None.
+
+    Returns:
+        [type]: [description]
+    """
     if encoder_cv is None:
         encoder_cv = CountVectorizer(analyzer = "word")
         encoder_cv.fit(train_df['clean_text'])
