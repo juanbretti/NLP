@@ -1,4 +1,5 @@
 # %%
+# Import libraries
 from flask import Flask, render_template, redirect, url_for, request
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm 
@@ -15,6 +16,7 @@ import joblib
 from helpers import helpers
 
 # %%
+# Environment
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'GroupCSecretKey2021-2022'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///./database/database.db'
@@ -130,7 +132,7 @@ def inbox():
     test_class_prob = find_class_prob(y_predict_proba)
     test_df_contact = pd.concat([test_df, test_class_prob], axis=1)
 
-    return render_template('inbox.html', name=current_user.username, df=test_df_contact.sample(n=10))
+    return render_template('inbox.html', name=current_user.username, df=test_df_contact.sample(n=5))
 
 @app.route('/compose', methods=['GET', 'POST'])
 @login_required

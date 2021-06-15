@@ -1,4 +1,5 @@
 # %%
+# Import libraries
 import nltk
 from nltk.stem import *
 from nltk.corpus import stopwords
